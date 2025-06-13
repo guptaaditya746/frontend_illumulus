@@ -1,3 +1,10 @@
-streamlit
-requests
-pillow
+streamlit             # UI framework
+opencv-python-headless  # Camera capture & image processing
+numpy                 # Array handling
+Pillow                # Image I/O
+deepface              # Face analysis (age/gender/emotion)
+ultralytics           # YOLO object detection
+torch                 # PyTorch backend for YOLO & transformers
+transformers          # Sentiment analysis (and later LLM clients)
+gTTS                  # Text-to-speech in-memory
+requests              # HTTP calls for real API integrations

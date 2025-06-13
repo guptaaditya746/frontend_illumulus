@@ -11,6 +11,8 @@ init_story_state()
 # Collect user input
 prompt = st.text_area(" What's your story idea?", st.session_state.story.get("prompt", ""))
 genre = st.selectbox(" Choose a genre", ["Fantasy", "Mystery", "Sci-Fi", "Comedy"], index=0)
+# TODO: Add the idea of using different frameworks for story generation, like "Hero's Journey" or "Three Act Structure", for this different workfow of agents should should be constrcuted , maybe 20 agnets , and each framework include few agents that work together to generate the story seed.
+# For now, we just use a multiselect for elements
 elements = st.multiselect(" Elements to include", ["Robot", "Forest", "Dragon", "Secret", "Friendship", "Magic", "Villain"])
 
 if st.button("   Save & Continue"):

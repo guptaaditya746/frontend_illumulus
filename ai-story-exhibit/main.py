@@ -1,66 +1,53 @@
 # main.py
 
 import streamlit as st
-import cv2
-import tempfile
-import numpy as np
-from PIL import Image
-from deepface import DeepFace
-from ultralytics import YOLO
 from state.session import init_story_state
+from models.user import UserProfile # Import the Pydantic model
+from pydantic import ValidationError
+from services.camera_processor import analyze_camera_input
 
-st.set_page_config(page_title="AI Story Onboarding", layout="centered")
-st.title("👋 Welcome to the AI Story Exhibit")
+st.set_page_config(page_title="ILLUMULUS 2025", layout="centered")
+st.title(" A Mutlimodel Co-Writer UNLIKE ANY OTHER")
 
-init_story_state()
+init_story_state()  # Initialize session state for story and user profile
+st.markdown("Welcome to the **ILLUMULUS 2025** exhibit! This interactive experience allows you to co-create a multimodal story with AI. Let's start by getting to know you better through your camera and voice.")
+st.markdown("###  Camera Onboarding")
 
 st.markdown("### Step 1: Let’s get to know you!")
 
 # Show camera input
-img_file_buffer = st.camera_input("📷 Take a snapshot of yourself")
+img_file_buffer = st.camera_input("Take a snapshot of yourself")
 
 if img_file_buffer is not None:
-    # Convert to image
-    image = Image.open(img_file_buffer).convert("RGB")
-    image_np = np.array(image)
-
-    # Save temporarily
-    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-        image_path = tmp.name
-        image.save(image_path)
-
-    # 1. Face Analysis (DeepFace)
-    with st.spinner("Analyzing face..."):
+    validated_profile: Optional[UserProfile] = None
+    with st.spinner("Analyzing your image... This may take a moment."):
         try:
-            face_info = DeepFace.analyze(img_path=image_path, actions=["age", "gender", "emotion"], enforce_detection=False)[0]
-            st.success("Face analysis complete.")
+            # The analyze_camera_input function handles internal errors
+            # and returns a dictionary with available data or defaults.
+            raw_profile_data = analyze_camera_input(img_file_buffer)
+            validated_profile = UserProfile.model_validate(raw_profile_data)
+        except ValidationError as ve:
+            st.error(f"There was an issue with the analyzed data format: {ve}")
+            # Log the validation error for debugging if needed
+            print(f"Pydantic ValidationError: {ve.errors()}")
         except Exception as e:
-            st.error("Face analysis failed.")
-            face_info = {}
-
-    # 2. Object Detection (YOLOv8)
-    with st.spinner("Detecting objects..."):
-        try:
-            model = YOLO("yolov8n.pt")
-            results = model(image_np)
-            labels = list(set([r.name for r in results[0].boxes.data]))
-            st.success("Object detection complete.")
-        except Exception as e:
-            st.error("Object detection failed.")
-            labels = []
-
-    # Show user profile
-    user_profile = {
-        "age": face_info.get("age"),
-        "gender": face_info.get("gender"),
-        "emotion": face_info.get("dominant_emotion"),
-        "objects": labels
-    }
-
-    st.session_state["user_profile"] = user_profile
-
-    st.markdown("### ✅ Detected Info:")
-    st.json(user_profile)
-
-    if st.button("Continue to Story Builder"):
-        st.switch_page("pages/1_Story_Builder.py")
+            st.error(f"An unexpected error occurred during image analysis: {e}")
+## TODO : Here we can add audio interaction , check youtube for examples
+  
+    # Check if analysis yielded any results
+    if validated_profile and \
+       (validated_profile.age is not None or \
+        validated_profile.gender or \
+        validated_profile.emotion or \
+        validated_profile.objects):
+        st.success("Analysis complete!")
+        # Store the Pydantic model instance or its dictionary representation
+        # Storing the model instance is fine if you consistently use it.
+        # Storing a dict might be simpler if other parts of the app expect dicts.
+        st.session_state["user_profile"] = validated_profile.model_dump()
+        st.markdown("###  Detected Info:")
+        st.json(validated_profile.model_dump_json(indent=2)) # Pretty print JSON
+        if st.button("Continue to Story Builder"):
+            st.switch_page("pages/1_Story_Builder.py")
+    else:
+        st.error("Could not extract sufficient information from the image. Please try taking another picture with a clearer view of your face and any surrounding objects.")
